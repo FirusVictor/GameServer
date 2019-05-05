@@ -1,12 +1,22 @@
 let mongoose = require('mongoose')
 let sha1 = require('sha1')
-mongoose.connect('mongodb://127.0.0.1/myproject')
+mongoose.connect('mongodb://127.0.0.1/myproject',{ useNewUrlParser: true })
 mongoose.Promise = global.Promise
 let db = mongoose.connection
 db.on('error', console.error.bind(console, 'MongoDB connection error:'))
 let UserModel = require('./models/User')
 
 module.exports = {
+  ClearAllTokens:()=>{
+    UserModel.updateMany({},{$unset:{token:1}}).exec()
+  },
+  GetUserByToken:(token,callback)=>{
+    UserModel.find({token:token}).exec((err,docs)=>{
+      if(docs){
+        callback(docs[0])
+      }
+    })
+  },
   Home:(req,res)=>{
     res.send("Hello!!! It's fucking magic!")
   },
@@ -21,23 +31,32 @@ module.exports = {
           error:'error db'
         })
       }else{
-        if(docs.leading>0){
+        if(docs.length>0){
           //Пользователь найден
-          let token = GetToken()
-          docs[0].update({$set:{token:token}},(err,docs)=>{
-            if(err){
-              console.log('error in db: '+err)
-              res.send({
-                status:false,
-                error:'error db'
-              })
-            }else{
-              res.send({
-                status:true,
-                token:token
-              })
-            }
-          })
+          if(docs[0].token){
+            //Уже авторизован
+            res.send({
+              status:false,
+              error:'Already auth'
+            })
+          }else{
+            //Авторизуемся
+            let token = GetToken()
+            docs[0].updateOne({$set:{token:token}},(err,docs)=>{
+              if(err){
+                console.log('error in db: '+err)
+                res.send({
+                  status:false,
+                  error:'error db'
+                })
+              }else{
+                res.send({
+                  status:true,
+                  token:token
+                })
+              }
+            })
+          }
         }else{
           //Не правильный логин/пароль
           res.send({
@@ -50,7 +69,7 @@ module.exports = {
   },
   Reg:(req,res)=>{
     let data = req.body
-    if(data.login.length>0 && data.pass.length>0){
+    if(data.login!=='' && data.pass!==''){
       UserModel.find({login:data.login}).exec((err,docs)=>{
         if(err){
           console.log('error in db: '+err)
@@ -73,19 +92,10 @@ module.exports = {
               pass:data.pass,
               token: token
             })
-            newUser.save().then((err)=>{
-              if(err){
-                console.log('error save new user')
-                res.send({
-                  status:false,
-                  error:'error db'
-                })
-              }else{
-                res.send({
-                  status:true,
-                  token:token
-                })
-              }
+            newUser.save()
+            res.send({
+              status:true,
+              token:token
             })
           }
         }
@@ -95,7 +105,7 @@ module.exports = {
   Logout:(req,res)=>{
     let token = req.body.token
     if(token){
-      UserModel.update({token:token},{$unset:{token:1}},(err,docs)=>{
+      UserModel.updateOne({token:token},{$unset:{token:1}},(err,docs)=>{
         if(err){
           res.send({
             status:false,
@@ -113,7 +123,7 @@ module.exports = {
         error:'bad query'
       })
     }
-  },
+  }
 }
 function GetToken() {
   return sha1(Math.random()*Math.random()*Math.random())
