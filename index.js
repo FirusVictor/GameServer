@@ -12,16 +12,17 @@ io.on('connection', function (socket) {
       api.GetUserByToken(token,(player)=>{
         if(player){
           players[socket.id] = player
-          io.emit('join',{status:true})
+          socket.emit('join',{status:true})
           io.emit('console',players[socket.id].login+' зашел на сервер')
         }else {
-          io.emit('join',{status:false})
+          socket.emit('join',{status:false})
         }
       })
     }
   })
   socket.on('disconnect',function () {
     if(players[socket.id]){
+      api.DelToken(players[socket.id].token)
       io.emit('console',players[socket.id].login+' вышел с сервера')
       delete players[socket.id]
     }

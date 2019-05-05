@@ -10,6 +10,9 @@ module.exports = {
   ClearAllTokens:()=>{
     UserModel.updateMany({},{$unset:{token:1}}).exec()
   },
+  DelToken:(token)=>{
+    UserModel.updateOne({token:token},{$unset:{token:1}}).exec()
+  },
   GetUserByToken:(token,callback)=>{
     UserModel.find({token:token}).exec((err,docs)=>{
       if(docs){
