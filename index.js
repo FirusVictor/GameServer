@@ -1,5 +1,6 @@
 let server = require('./server').server
 let socketIO = require('socket.io')
+let dateFormat = require('dateformat')
 let api = require('./api')
 let io = socketIO(server)
 
@@ -13,17 +14,24 @@ io.on('connection', function (socket) {
         if(player){
           players[socket.id] = player
           socket.emit('join',{status:true})
-          io.emit('console',players[socket.id].login+' зашел на сервер')
+          io.emit('console',GetTime() + ' ' + players[socket.id].login+' зашел на сервер')
         }else {
           socket.emit('join',{status:false})
         }
       })
     }
   })
+  socket.on('exit',function (data) {
+    if(players[socket.id]){
+      api.DelToken(players[socket.id].token)
+      io.emit('console',GetTime() + ' ' + players[socket.id].login+' вышел с сервера')
+      delete players[socket.id]
+    }
+  })
   socket.on('disconnect',function () {
     if(players[socket.id]){
       api.DelToken(players[socket.id].token)
-      io.emit('console',players[socket.id].login+' вышел с сервера')
+      io.emit('console',GetTime() + ' ' + players[socket.id].login+' вышел с сервера')
       delete players[socket.id]
     }
   })
@@ -40,13 +48,16 @@ io.on('connection', function (socket) {
           message+=' ' + players[player].login+','
         }
         message = message.slice(0, message.length-1)
-        socket.emit('console', message)
+        socket.emit('console', GetTime() + ' ' + message)
         break
       }
     }else{
       console.log(players[socket.id].login + ': ' + data)
-      io.emit('console',players[socket.id].login+': '+data)
+      io.emit('console',GetTime() + ' ' + players[socket.id].login+': '+data)
     }
   })
 })
 
+function GetTime() {
+  return dateFormat(new Date(), "hh:MM:ss")
+}
